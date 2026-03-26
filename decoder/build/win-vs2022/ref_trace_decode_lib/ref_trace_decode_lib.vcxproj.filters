@@ -108,6 +108,9 @@
     <None Include="..\..\..\docs\prog_guide\prog_guide_main.md">
       <Filter>docs-files</Filter>
     </None>
+    <None Include="..\..\..\tests\auto-fdo\autofdo.md">
+      <Filter>docs-files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\source\trc_frame_deformatter_impl.h">

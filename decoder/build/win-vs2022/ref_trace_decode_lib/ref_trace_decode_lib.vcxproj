@@ -465,6 +465,7 @@
     <None Include="..\..\..\docs\prog_guide\prog_guide_generic_pkts.md" />
     <None Include="..\..\..\docs\prog_guide\prog_guide_main.md" />
     <None Include="..\..\..\docs\test_progs.md" />
+    <None Include="..\..\..\tests\auto-fdo\autofdo.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\common\comp_attach_notifier_i.h" />
