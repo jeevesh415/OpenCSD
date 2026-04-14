@@ -101,8 +101,7 @@ private:
     
     // synchronisation 
     uint32_t findfirstFSync();
-    void outputUnsyncedBytes(uint32_t num_bytes);  // output bytes as unsynced from current buffer position.
-
+    
     // output bytes to raw frame monitor
     void outputRawMonBytes(const ocsd_datapath_op_t op, 
                            const ocsd_trc_index_t index, 
@@ -154,6 +153,7 @@ private:
     int m_ex_frm_n_bytes;   // number of valid bytes in the current frame (extraction)
     bool m_b_fsync_start_eob;  // flag to indicate that the end of the last buffer was a pair of bytes
                                // (0xffff) that could only validly be the start and FSYNC.
+    bool m_b_fsync_chk_eo_buf; // same flag for the fsync check code if short buffer (2 bytes) / eo buffer
     ocsd_trc_index_t m_trc_curr_idx_sof; // trace source index at start of frame.
 
     /* channel output data - can never be more than a frame of data for a single ID.

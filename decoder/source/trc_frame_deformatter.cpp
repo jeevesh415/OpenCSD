@@ -49,6 +49,13 @@
 #define DEFORMATTER_NAME OCSD_CMPNAME_PREFIX_FRAMEDEFORMATTER##"_CSFRAMES"
 #endif
 
+
+static const uint32_t FSYNC_PATTERN = 0x7FFFFFFF;    // LE host pattern for FSYNC	 
+static const uint16_t FSYNC_START = 0xFFFF;
+static const uint16_t FSYNC_END = 0x7FFF;
+static const uint16_t HSYNC_PATTERN = 0x7FFF;        // LE host pattern for HSYNC
+
+
 TraceFmtDcdImpl::TraceFmtDcdImpl() : TraceComponent(DEFORMATTER_NAME),
     m_cfgFlags(0),
     m_force_sync_idx(0),
@@ -130,7 +137,7 @@ ocsd_err_t TraceFmtDcdImpl::OutputFilterIDs(std::vector<uint8_t> &id_list, bool 
     while((iter < id_list.end()) && (err == OCSD_OK))
     {
         id = *iter;
-        if(id > 128)
+        if(id >= 128)
             err = OCSD_ERR_INVALID_ID;
         else
         {
@@ -353,7 +360,15 @@ void TraceFmtDcdImpl::resetStateParams()
     // current frame processing
     m_ex_frm_n_bytes = 0;
     m_b_fsync_start_eob = false;
+    m_b_fsync_chk_eo_buf = false;
     m_trc_curr_idx_sof = OCSD_BAD_TRC_INDEX;
+}
+
+ocsd_err_t TraceFmtDcdImpl::SetForcedSyncIndex(ocsd_trc_index_t index, bool bSet)
+{
+    m_use_force_sync = bSet;
+    m_force_sync_idx = index;
+    return OCSD_OK;
 }
 
 bool TraceFmtDcdImpl::checkForSync()
@@ -392,41 +407,56 @@ bool TraceFmtDcdImpl::checkForSync()
 
         if(unsynced_bytes)
         {
-            outputUnsyncedBytes(unsynced_bytes);
             m_in_block_processed = unsynced_bytes;
             m_trc_curr_idx += unsynced_bytes;
         }
     }
-    return m_frame_synced;
+
+    // continue processing if synced or potentially synced
+    return (m_frame_synced || m_b_fsync_chk_eo_buf);
 }
 
 uint32_t TraceFmtDcdImpl::findfirstFSync()
 {
-    uint32_t processed = 0;
-    const uint32_t FSYNC_PATTERN = 0x7FFFFFFF;    // LE host pattern for FSYNC	 
+    uint32_t processed = 0, remain = m_in_block_size;
     const uint8_t *dataPtr = m_in_block_base;
 
-    while (processed < (m_in_block_size - 3))
+    // last time had potential fsync at end of buffer
+    if (m_b_fsync_chk_eo_buf == true)
+    {
+        if (*((uint16_t*)(dataPtr)) == FSYNC_END) 
+        {
+            m_frame_synced = true;
+        }
+        // return to let frame processor deal with fsync / error
+        m_b_fsync_chk_eo_buf = false;
+        return 0;
+    }
+
+    while (processed < (remain - 2))
     {
         if (*((uint32_t *)(dataPtr)) == FSYNC_PATTERN)
         {
             m_frame_synced = true;
             break;
         }
-        processed++;
-        dataPtr++;
+        processed += 2;
+        dataPtr += 2;
+        remain -= 2;
     }
-    return processed;
-}
 
-void TraceFmtDcdImpl::outputUnsyncedBytes(uint32_t /*num_bytes*/)
-{
-    //**TBD:
+    // HSYNC aligned 2 byte, allows small blocks or start of fsync at EOB
+    if (!m_frame_synced && (remain == 2))
+    {
+        if (*((uint16_t*)(dataPtr)) == FSYNC_START)
+            m_b_fsync_chk_eo_buf = true;
+    }
+
+    return processed;
 }
 
 ocsd_err_t TraceFmtDcdImpl::checkForResetFSyncPatterns(uint32_t &f_sync_bytes)
 {
-	const uint32_t FSYNC_PATTERN = 0x7FFFFFFF;    // LE host pattern for FSYNC	 
 	bool check_for_fsync = true;
 	int num_fsyncs = 0;
     uint32_t bytes_processed = m_in_block_processed;
@@ -469,11 +499,7 @@ ocsd_err_t TraceFmtDcdImpl::checkForResetFSyncPatterns(uint32_t &f_sync_bytes)
 
 /* Extract a single frame from the input buffer. */
 bool TraceFmtDcdImpl::extractFrame()
-{
-	const uint32_t FSYNC_PATTERN = 0x7FFFFFFF;    // LE host pattern for FSYNC	 
-	const uint16_t HSYNC_PATTERN = 0x7FFF;        // LE host pattern for HSYNC
-    const uint16_t FSYNC_START = 0xFFFF;          // LE host pattern for start 2 bytes of fsync
-	
+{	
     ocsd_err_t err;
     uint32_t f_sync_bytes = 0; // skipped f sync bytes
     uint32_t h_sync_bytes = 0; // skipped h sync bytes
@@ -541,8 +567,7 @@ bool TraceFmtDcdImpl::extractFrame()
         {
             // was there an fsync start at the end of the last buffer?
             if (m_b_fsync_start_eob) {
-                // last 2 of FSYNC look like HSYNC
-                if (*(uint16_t*)(dataPtr) != HSYNC_PATTERN)
+                if (*(uint16_t*)(dataPtr) != FSYNC_END)
                 {
                     // this means 0xFFFF followed by something else - invalid ID + ????
                     throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_DFMTR_BAD_FHSYNC, m_trc_curr_idx, "Bad FSYNC pattern before frame or invalid ID.(0x7F)");
@@ -554,6 +579,7 @@ bool TraceFmtDcdImpl::extractFrame()
                     dataPtr += 2;
                 }
                 m_b_fsync_start_eob = false;
+                m_b_fsync_chk_eo_buf = false;
             }
 
             // regular fsync checks
@@ -599,12 +625,14 @@ bool TraceFmtDcdImpl::extractFrame()
                 else
                 {
                     // throw illegal HSYNC error.
+                    m_trc_curr_idx += ex_bytes + f_sync_bytes + h_sync_bytes;
                     throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_DFMTR_BAD_FHSYNC, m_trc_curr_idx, "Bad HSYNC in frame.");
                 }
             }
             // can't have a start of FSYNC here / illegal trace ID
             else if (data_pair_val == FSYNC_START)
             {
+                m_trc_curr_idx += ex_bytes + f_sync_bytes + h_sync_bytes;
                 throw ocsdError(OCSD_ERR_SEV_ERROR, OCSD_ERR_DFMTR_BAD_FHSYNC, m_trc_curr_idx, "Bad FSYNC start in frame or invalid ID (0x7F).");
             }
             else
