@@ -32,9 +32,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */ 
 
+#include <sstream>
+
 #include "mem_acc/trc_mem_acc_mapper.h"
 #include "mem_acc/trc_mem_acc_file.h"
 #include "common/ocsd_error.h"
+
+/* Uncomment to log mapping / accessor operations */
+// #define LOG_MEM_MAP_OPS
 
 /************************************************************************************/
 /* mappers base class */
@@ -84,22 +89,41 @@ ocsd_err_t TrcMemAccMapper::ReadTargetMemory(const ocsd_vaddr_t address, const u
     uint32_t readBytes = 0;
     ocsd_err_t err = OCSD_OK;
 
+#ifdef LOG_MEM_MAP_OPS
+    std::ostringstream oss;
+    std::string dbgstr;
+    TrcMemAccessorBase::getMemAccSpaceString(dbgstr, mem_space);
+    oss << "MAP:ReadTargetMemory(Addr:0x" << std::hex << address << ", Space:" << dbgstr << ", req bytes: " << std::dec << *num_bytes << ")";
+#endif
+
     /* see if the address is in any range we know */
     if (!readFromCurrent(address, mem_space, cs_trace_id))
     {
+
+#ifdef LOG_MEM_MAP_OPS
+        oss << "\n";
+        LogMessage(oss.str());
+        oss.clear();
+#endif
         bReadFromCurr = findAccessor(address, mem_space, cs_trace_id);
 
         // found a new accessor - invalidate any cache entries used by the previous one.
         if (m_cache.enabled() && bReadFromCurr)
-            m_cache.invalidateByTraceID(cs_trace_id); 
+            m_cache.invalidateByTraceID(cs_trace_id);
     }
-
+#ifdef LOG_MEM_MAP_OPS
+    else { oss << "(use curr acc)"; }
+#endif
     /* if bReadFromCurr then we know m_acc_curr is set */
     if (bReadFromCurr)
     {
         // use cache if enabled and the amount fits into a cache page
         if (m_cache.enabled_for_size(*num_bytes))
         {
+
+#ifdef LOG_MEM_MAP_OPS
+            oss << "[ Read Cache ] ";
+#endif
             // read from cache - or load a new cache page and read....
             readBytes = *num_bytes;
             err = m_cache.readBytesFromCache(m_acc_curr, address, mem_space, cs_trace_id, &readBytes, p_buffer);
@@ -108,6 +132,9 @@ ocsd_err_t TrcMemAccMapper::ReadTargetMemory(const ocsd_vaddr_t address, const u
         }
         else
         {
+#ifdef LOG_MEM_MAP_OPS
+            oss << "[ Read Direct ] ";
+#endif
             readBytes = m_acc_curr->readBytes(address, mem_space, cs_trace_id, *num_bytes, p_buffer);
             // guard against bad accessor returns (e.g. callback not obeying the rules for return values)
             if (readBytes > *num_bytes)
@@ -117,6 +144,11 @@ ocsd_err_t TrcMemAccMapper::ReadTargetMemory(const ocsd_vaddr_t address, const u
             }
         }
     }
+
+#ifdef LOG_MEM_MAP_OPS
+    oss << "{ Bytes Read: " << std::dec << readBytes << " }\n";
+    LogMessage(oss.str());
+#endif
 
     *num_bytes = readBytes;  
     return err;
@@ -187,9 +219,22 @@ ocsd_err_t TrcMemAccMapGlobalSpace::AddAccessor(TrcMemAccessorBase *p_accessor, 
     ocsd_err_t err = OCSD_OK;
     bool bOverLap = false;
 
-    if(!p_accessor->validateRange())
-        return OCSD_ERR_MEM_ACC_RANGE_INVALID;
+#ifdef LOG_MEM_MAP_OPS
+    std::ostringstream oss;
+    std::string str;
 
+    p_accessor->getMemAccString(str);
+    oss << "MAP::AddAccessor() : " << str << " - ";
+#endif
+
+    if (!p_accessor->validateRange())
+    {
+#ifdef LOG_MEM_MAP_OPS
+        oss << "FAILED: Range invalid\n";
+        LogMessage(oss.str());
+#endif
+        return OCSD_ERR_MEM_ACC_RANGE_INVALID;
+    }
     std::vector<TrcMemAccessorBase *>::const_iterator it =  m_acc_global.begin();
     while((it != m_acc_global.end()) && !bOverLap)
     {
@@ -199,14 +244,25 @@ ocsd_err_t TrcMemAccMapGlobalSpace::AddAccessor(TrcMemAccessorBase *p_accessor, 
             )
         {
             bOverLap = true;
+#ifdef LOG_MEM_MAP_OPS
+            oss << "FAILED: Range Overlap\n";
+#endif
             err = OCSD_ERR_MEM_ACC_OVERLAP;
         }
         it++;
     }
 
     // no overlap - add to the list of ranges.
-    if(!bOverLap)
+    if (!bOverLap) {
+#ifdef LOG_MEM_MAP_OPS
+        oss << "SUCCESS\n";
+#endif
         m_acc_global.push_back(p_accessor);
+    }
+
+#ifdef LOG_MEM_MAP_OPS
+    LogMessage(oss.str());
+#endif
 
     return err;
 }
@@ -215,16 +271,34 @@ bool TrcMemAccMapGlobalSpace::findAccessor(const ocsd_vaddr_t address, const ocs
 {
     bool bFound = false;
     std::vector<TrcMemAccessorBase *>::const_iterator it =  m_acc_global.begin();
+#ifdef LOG_MEM_MAP_OPS
+    std::ostringstream oss;
+    std::string str;
+    TrcMemAccessorBase::getMemAccSpaceString(str, mem_space);
+    oss << "FindAccessor(Addr:0x" << std::hex << address << "; mem space: " << str << ")\n";
+#endif
+
+
     while((it != m_acc_global.end()) && !bFound)
     {
+#ifdef LOG_MEM_MAP_OPS
+        (*it)->getMemAccString(str);
+        oss << "Match Accessor : " << str << "; ";
+#endif
         if( (*it)->addrInRange(address) &&
             (*it)->inMemSpace(mem_space))
         {
             bFound = true;
             m_acc_curr = *it;
         }
+#ifdef LOG_MEM_MAP_OPS
+        oss << ((bFound) ? "Match\n" : "Fail\n");
+#endif
         it++;
     }
+#ifdef LOG_MEM_MAP_OPS
+    LogMessage(oss.str());
+#endif
     return bFound;
 }
 
