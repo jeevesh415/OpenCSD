@@ -91,13 +91,12 @@ TrcStackElemExcept *EtmV4P0Stack::createExceptElem(const ocsd_etmv4_i_pkt_type r
     return pElem;
 }
 
-TrcStackElemCtxt *EtmV4P0Stack::createContextElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const etmv4_context_t &context, const uint8_t IS, const bool back /*= false*/)
+TrcStackElemCtxt *EtmV4P0Stack::createContextElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const etmv4_context_t &context, const bool back /*= false*/)
 {
     TrcStackElemCtxt *pElem = new (std::nothrow) TrcStackElemCtxt(root_pkt, root_index);
     if (pElem)
     {
         pElem->setContext(context);
-        pElem->setIS(IS);
         if (back)
             push_back(pElem);
         else

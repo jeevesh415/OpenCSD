@@ -129,6 +129,15 @@ private:
             return ocsd_isa_aarch64;
         return (IS == 0) ? ocsd_isa_arm : ocsd_isa_thumb2;
     }
+
+    // adjust instr info isa for current context element - note SF bit and current isa set by address element.
+    void ctxtCalcInstrInfoISA()
+    {
+        if (m_is_64bit)
+            m_instr_info.isa = ocsd_isa_aarch64;
+        else if (m_instr_info.isa == ocsd_isa_aarch64)
+            m_instr_info.isa = ocsd_isa_arm;
+    }
     typedef enum {
         WP_NOT_FOUND,
         WP_FOUND,
@@ -177,7 +186,6 @@ private:
     uint32_t m_vmid_id;                 // most recent VMID
     bool m_is_secure;                   // true if Secure
     bool m_is_64bit;                    // true if 64 bit
-    uint8_t m_last_IS;                  // last instruction set value from address packet.
 
     // cycle counts 
     int m_cc_threshold;

@@ -302,7 +302,6 @@ void TrcPktDecodeEtmV4I::resetDecoder()
     m_prev_overflow = false;
     m_P0_stack.delete_all();
     m_out_elem.resetElemStack();
-    m_last_IS = 0;
     clearElemRes();
     m_ete_first_ts_marker = false;
     nextRangeCheckClear();
@@ -327,6 +326,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::decodePacket()
     ocsd_err_t err = OCSD_OK;
     bool bAllocErr = false;
     bool is_addr = false;
+    bool is_addr_with_ctxt = false;
 
     switch(m_curr_packet_in->getType())
     {
@@ -366,7 +366,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::decodePacket()
 
     case ETM4_PKT_I_CTXT:
         {
-            if (m_P0_stack.createContextElem(m_curr_packet_in->getType(), m_index_curr_pkt, m_curr_packet_in->getContext(), m_last_IS) == 0)
+            if (m_P0_stack.createContextElem(m_curr_packet_in->getType(), m_index_curr_pkt, m_curr_packet_in->getContext()) == 0)
                 bAllocErr = true;
         }
         break;
@@ -376,7 +376,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::decodePacket()
             etmv4_addr_val_t addr;
 
             addr.val = m_curr_packet_in->getAddrVal();
-            addr.isa = m_last_IS = m_curr_packet_in->getAddrIS();
+            addr.isa = m_curr_packet_in->getAddrIS();
 
             if (m_P0_stack.createAddrElem(m_curr_packet_in->getType(), m_index_curr_pkt, addr) == 0)
                 bAllocErr = true;
@@ -389,9 +389,7 @@ ocsd_err_t TrcPktDecodeEtmV4I::decodePacket()
     case ETM4_PKT_I_ADDR_CTXT_L_32IS0:
     case ETM4_PKT_I_ADDR_CTXT_L_32IS1:    
         {
-            m_last_IS = m_curr_packet_in->getAddrIS();
-            if (m_P0_stack.createContextElem(m_curr_packet_in->getType(), m_index_curr_pkt, m_curr_packet_in->getContext(), m_last_IS) == 0)
-                bAllocErr = true;
+            is_addr_with_ctxt = true;
         }
     case ETM4_PKT_I_ADDR_L_32IS0:
     case ETM4_PKT_I_ADDR_L_32IS1:
@@ -403,11 +401,18 @@ ocsd_err_t TrcPktDecodeEtmV4I::decodePacket()
             etmv4_addr_val_t addr;
 
             addr.val = m_curr_packet_in->getAddrVal();
-            addr.isa = m_last_IS = m_curr_packet_in->getAddrIS();
+            addr.isa = m_curr_packet_in->getAddrIS();
 
             if (m_P0_stack.createAddrElem(m_curr_packet_in->getType(), m_index_curr_pkt, addr) == 0)
                 bAllocErr = true;
             is_addr = true;  // may be waiting for target address from indirect branch
+
+            // create elements in correct order for addr + ctxt
+            if (is_addr_with_ctxt)
+            {
+                if (m_P0_stack.createContextElem(m_curr_packet_in->getType(), m_index_curr_pkt, m_curr_packet_in->getContext()) == 0)
+                    bAllocErr = true;
+            }
         }
         break;
 
@@ -2060,7 +2065,8 @@ void TrcPktDecodeEtmV4I::updateContext(TrcStackElemCtxt *pCtxtElem, OcsdTraceEle
     }
 
     // need to update ISA in case context follows address.
-    elem.isa = m_instr_info.isa = calcISA(m_is_64bit, pCtxtElem->getIS());
+    ctxtCalcInstrInfoISA();
+    elem.isa = m_instr_info.isa;
     m_need_ctxt = false;
 }
 
