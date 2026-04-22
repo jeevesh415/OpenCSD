@@ -82,6 +82,10 @@ Static versions of the libraries:
 
 Test programs are delivered to the `./tests/bin/<tgt_dir>` directories.
 
+The cross-platform packet decode regression runner script is kept in
+`./tests/run_pkt_decode_tests.py`. See [`./docs/test_progs.md`](@ref test_progs)
+for usage details, result directory handling, and post-run comparison options.
+
 The test programs are built to used the .so versions of the libraries. 
 -  `trc_pkt_lister`         - dependent on `libcstraced.so`.
 -  `simple_pkt_print_c_api` - dependent on `libcstraced_c_api.so` & hence `libcstraced.so`.
