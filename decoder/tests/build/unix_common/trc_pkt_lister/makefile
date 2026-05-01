@@ -61,9 +61,11 @@ test_app: $(BIN_TEST_TARGET_DIR)/$(PROG)
 			mkdir -p  $(BIN_TEST_TARGET_DIR)
 			$(LINKER) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(BIN_TEST_TARGET_DIR)/$(PROG)
 
+ifneq ($(SHARED_LIB_SUFFIX),dylib)
 $(BIN_TEST_TARGET_DIR)/$(PROG_S): $(OBJECTS) | build_dir
 			mkdir -p  $(BIN_TEST_TARGET_DIR)
 			$(LINKER) -static $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(BIN_TEST_TARGET_DIR)/$(PROG_S)
+endif
 
 
 
@@ -72,7 +74,9 @@ build_dir:
 
 .PHONY: copy_libs
 ifdef TEST_STATIC_LINKING
+ifneq ($(SHARED_LIB_SUFFIX),dylib)
 copy_libs: $(BIN_TEST_TARGET_DIR)/$(PROG_S) 
+endif
 endif
 copy_libs: $(BIN_TEST_TARGET_DIR)/$(PROG)
 	cp $(LIB_TARGET_DIR)/*.$(SHARED_LIB_SUFFIX)* $(BIN_TEST_TARGET_DIR)/.
@@ -94,7 +98,9 @@ $(BUILD_DIR)/%.o : %.cpp | build_dir
 clean :
 	-rm $(BIN_TEST_TARGET_DIR)/$(PROG) $(OBJECTS)
 ifdef TEST_STATIC_LINKING
+ifneq ($(SHARED_LIB_SUFFIX),dylib)
 	-rm $(BIN_TEST_TARGET_DIR)/$(PROG_S)
+endif
 endif
 	-rm $(DEPS)
 	-rm $(BIN_TEST_TARGET_DIR)/*.$(SHARED_LIB_SUFFIX)*
