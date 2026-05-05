@@ -27,7 +27,7 @@ Releases will appear on the master branch in the git repository with an appropri
 CoreSight Trace Component Support.
 ----------------------------------
 
-_Current Version 1.8.1_
+_Current Version 1.8.2_
 
 ### Current support:
 
@@ -382,6 +382,15 @@ Version and Modification Information
                   on short 2 byte aligned buffers or split across buffer boundary.
     - __Bugfix__: etmv4: Packet description string typo fixed. (github #84)
     - __Bugfix__: stm: Issue with waitASync routine (github #85), fix freq packet handling
+
+- _Version 1.8.2:
+    - __Update__: tests: add python test script for cross platform use - replace linux only bash scripts.
+    - __Update__: opencsd: memory access - added debug to trace memory accesses by library under control of env var.
+    - __Bugfix__: tests: windows test program names differ from linux ones - fix to make same
+    - __Bugfix__: etmv4: ete: Fix corner case for exception packet processing - issue with exception address
+                  representing the previous branch target and the exception return address, plus return stack
+                  issues. (github #88)
+    - __Bugfix__: Fix mac-os build for test programs.
 
      
 Licence Information
