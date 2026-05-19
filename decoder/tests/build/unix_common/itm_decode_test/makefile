@@ -59,14 +59,14 @@ test_app: $(BIN_TEST_TARGET_DIR)/$(PROG)
 
 $(BIN_TEST_TARGET_DIR)/$(PROG): $(OBJECTS) | build_dir
 			mkdir -p  $(BIN_TEST_TARGET_DIR)
-			$(LINKER) $(LDFLAGS) $(OBJECTS) -Wl,--start-group $(LIBS) -Wl,--end-group -o $(BIN_TEST_TARGET_DIR)/$(PROG)
+			$(LINKER) $(LDFLAGS) $(OBJECTS) $(LIBS) -o $(BIN_TEST_TARGET_DIR)/$(PROG)
 
 build_dir:
 	mkdir -p $(BUILD_DIR)
 
 .PHONY: copy_libs
 copy_libs: $(BIN_TEST_TARGET_DIR)/$(PROG)
-	cp $(LIB_TARGET_DIR)/*.so* $(BIN_TEST_TARGET_DIR)/.
+	cp $(LIB_TARGET_DIR)/*.$(SHARED_LIB_SUFFIX)* $(BIN_TEST_TARGET_DIR)/.
 
 
 
@@ -85,7 +85,7 @@ $(BUILD_DIR)/%.o : %.cpp | build_dir
 clean :
 	-rm $(BIN_TEST_TARGET_DIR)/$(PROG) $(OBJECTS)
 	-rm $(DEPS)
-	-rm $(BIN_TEST_TARGET_DIR)/*.so*
+	-rm $(BIN_TEST_TARGET_DIR)/*.$(SHARED_LIB_SUFFIX)*
 	-rmdir $(BUILD_DIR)
 
 # end of file makefile

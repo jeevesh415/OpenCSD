@@ -180,6 +180,7 @@ ocsd_datapath_resp_t TrcPktDecodeStm::decodePacket(bool &bPktDone)
     case STM_PKT_VERSION:    /**< Version packet - no output but forces current IDs to 0 */
         m_swt_packet_info.swt_master_id = m_curr_packet_in->getMaster();
         m_swt_packet_info.swt_channel_id = m_curr_packet_in->getChannel();
+        m_swt_packet_info.swt_id_valid = 1;
         break;
         
     case STM_PKT_ASYNC:      /**< Alignment synchronisation packet */

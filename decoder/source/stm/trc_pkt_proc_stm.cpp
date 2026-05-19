@@ -217,7 +217,6 @@ void TrcPktProcStm::initProcessorState()
     m_curr_packet.initStartState();
     m_nibble_2nd_valid = false;
     initNextPacket();
-    m_bWaitSyncSaveSuppressed = false;
 
     m_packet_data.clear();
 }
@@ -233,11 +232,12 @@ void TrcPktProcStm::initNextPacket()
 }
 
 // search remaining buffer for a start of sync or full sync packet
+#define MAX_BLOCK_NIBBLES 64   // limit the size of unsynced block processing in one pass
+#define NUM_FSYNC_NIBBLES 22   // number of nibbles for an FSYNC
 void TrcPktProcStm::waitForSync(const ocsd_trc_index_t blk_st_index)
 {
-    bool bGotData = true;
-    uint32_t start_offset = m_data_in_used; // record the offset into the buffer at start of this fn.
-
+    bool bGotData = true, bPreAmbleAndSync = false, bSyncOnEntry = m_is_sync;
+  
     // input conditions:
     // out of sync - either at start of input stream, or due to bad packet.
     // m_data_in_used -> bytes already processed
@@ -245,60 +245,53 @@ void TrcPktProcStm::waitForSync(const ocsd_trc_index_t blk_st_index)
 
     // set a packet index for the start of the data
     m_packet_index = blk_st_index + m_data_in_used;
-    m_num_nibbles = m_is_sync ? m_num_F_nibbles + 1 : m_num_F_nibbles;    // sending unsync data may have cleared down num_nibbles.
-
-    m_bWaitSyncSaveSuppressed = true;   // no need to save bytes until we want to send data.
-
-    while(bGotData && !m_is_sync)
+    
+    while(bGotData && !m_is_sync && (m_num_nibbles < MAX_BLOCK_NIBBLES))
     {
         bGotData = readNibble();    // read until we have a sync or run out of data
     }
 
-    m_bWaitSyncSaveSuppressed = false;
-
-    // no data from first attempt to read
-    if(m_num_nibbles == 0)
-        return;
-    
     // we have found a sync or run out of data
-    // five possible scenarios
+    // six possible scenarios
     // a) all data none sync data.
     // b) some none sync data + start of sync sequence
-    // c) some none sync data + full sync sequence in this frame
-    // d) full sync sequence @ start of this frame followed by ???
-    // e) completion of sync sequence in this frame (from b)).
+    // c) short block containing middle of incomplete sync sequence
+    // d) some none sync data + full sync sequence in this frame
+    // e) full sync sequence @ start of this frame followed by ???
+    // f) completion of sync sequence in this frame (from b, c)).
 
-    if(!bGotData || m_num_nibbles > 22)
+    // see if scenario d)
+    bPreAmbleAndSync = (m_is_sync && (m_num_nibbles > NUM_FSYNC_NIBBLES)) && mon_in_use.usingMonitor();
+    if (bPreAmbleAndSync)
     {
-        // for a), b), c) send the none sync data then re-enter
-        // if out of data, or sync with some previous data, this is sent as unsynced.
-        
-        m_curr_packet.setPacketType(STM_PKT_NOTSYNC,false);
-        if(mon_in_use.usingMonitor())
-        {
-            uint8_t nibbles_to_send = m_num_nibbles - (m_is_sync ? 22 : m_num_F_nibbles);
-            uint8_t bytes_to_send = (nibbles_to_send / 2) + (nibbles_to_send % 2);
-            for(uint8_t i = 0; i < bytes_to_send; i++)
-                savePacketByte(m_p_data_in[start_offset+i]);
-        }
+        // in this case only remove the sync, to output the none sync data,
+        // output full sync next pass
+        for (int j = 0; j < (NUM_FSYNC_NIBBLES / 2); j++)
+            m_packet_data.pop_back();
 
-        // if we have found a sync then we will re-enter this function with no pre data, 
-        // but the found flags set.
+    }
+
+    if (!m_is_sync || bPreAmbleAndSync)
+    {
+        // some data before sync or incomplete sync - not full sync packet
+        m_curr_packet.setPacketType(STM_PKT_NOTSYNC,false);
     }
     else
     {
+        // sync on entry means we found the sync last pass but output preamble unsync data only
+        // restore sync here.
+        if (bSyncOnEntry && mon_in_use.usingMonitor())
+        {
+            for (int i = 0; i < 10; i++)
+                savePacketByte(0xFF);
+            savePacketByte(0x0F);
+        }
+
         // send the async packet
         m_curr_packet.setPacketType(STM_PKT_ASYNC,false);
         m_bStreamSync = true;   // mark the stream as synchronised
         clearSyncCount();
         m_packet_index = m_sync_index;
-        if(mon_in_use.usingMonitor())
-        {
-            // we may not have the full sync packet still in the local buffer so synthesise it.
-            for(int i = 0; i < 10; i++)
-                savePacketByte(0xFF);
-            savePacketByte(0x0F);
-        }        
     }
     sendPacket();  // mark packet for sending
 }

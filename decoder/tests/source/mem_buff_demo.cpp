@@ -523,6 +523,7 @@ int main(int argc, char* argv[])
     ocsd_datapath_resp_t retd;
     char msg[256];
     uint32_t bytes_done;
+    std::ostringstream oss;
 
     if (process_cmd_line_opts(argc, argv) != 0)
         return -1;
@@ -532,7 +533,10 @@ int main(int argc, char* argv[])
     if (no_print)
         logCB.setOutConsole(false);
 
-    logCB.printOutStr("MemBuffDemo\n--------------\n\n");
+    oss << "MemBuffDemo\n--------------\n\n";
+    oss << "** Library Version : " << ocsdVersion::vers_str() << "\n\n";
+    logCB.printOutStr(oss.str());
+
     log_cmd_line_opts(argc, argv);
 
 

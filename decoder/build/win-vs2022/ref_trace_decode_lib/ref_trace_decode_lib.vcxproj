@@ -193,18 +193,22 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
     <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-dll|x64'">
     <OutDir>..\..\..\lib\win$(PlatformArchitecture)\dbg\</OutDir>
     <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
     <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-dll|x64'">
     <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
     <TargetName>lib$(LIB_BASE_NAME)</TargetName>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>..\..\..\lib\win$(PlatformArchitecture)\rel\</OutDir>
@@ -465,6 +469,7 @@
     <None Include="..\..\..\docs\prog_guide\prog_guide_generic_pkts.md" />
     <None Include="..\..\..\docs\prog_guide\prog_guide_main.md" />
     <None Include="..\..\..\docs\test_progs.md" />
+    <None Include="..\..\..\tests\auto-fdo\autofdo.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\include\common\comp_attach_notifier_i.h" />

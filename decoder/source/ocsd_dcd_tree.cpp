@@ -830,11 +830,17 @@ ocsd_err_t DecodeTree::addPacketPrinter(uint8_t CSID, bool bMonitor, ItemPrinter
 ocsd_err_t DecodeTree::addRawFramePrinter(RawFramePrinter **ppPrinter, uint32_t flags)
 {
     ocsd_err_t err = OCSD_ERR_MEM;
-    RawFramePrinter *pPrinter = PktPrinterFact::createRawFramePrinter(getPrinterList());
+    TraceFormatterFrameDecoder *pFrameDecoder = getFrameDeformatter();
+    RawFramePrinter *pPrinter;
+
+    /* cannot print raw frames if not in use - no deformatter */
+    if (!pFrameDecoder)
+        return OCSD_ERR_DCDT_NO_FORMATTER;
+
+    pPrinter = PktPrinterFact::createRawFramePrinter(getPrinterList());
     if (pPrinter)
     {
         pPrinter->setMessageLogger((DecodeTree::getCurrentErrorLogI()->getOutputLogger()));
-        TraceFormatterFrameDecoder *pFrameDecoder = getFrameDeformatter();
         uint32_t cfgFlags = pFrameDecoder->getConfigFlags();
         cfgFlags |= ((uint32_t)flags & (OCSD_DFRMTR_PACKED_RAW_OUT | OCSD_DFRMTR_UNPACKED_RAW_OUT));
         pFrameDecoder->Configure(cfgFlags);

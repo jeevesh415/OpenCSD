@@ -182,7 +182,6 @@ private:
     ocsd_trc_index_t m_packet_index;       //!< byte index for start of current packet
 
     std::vector<uint8_t> m_packet_data;     //!< current packet data (bytes) - only saved if needed to output to monitor.
-    bool m_bWaitSyncSaveSuppressed;         //!< don't save byte at a time when waitsync
 
     // payload data
     uint8_t   m_val8;                       //!< 8 bit payload.
@@ -279,7 +278,7 @@ inline void TrcPktProcStm::setProcUnsynced()
 inline void TrcPktProcStm::savePacketByte(const uint8_t val)
 {
     // save packet data if using monitor and synchronised.
-    if(mon_in_use.usingMonitor() && !m_bWaitSyncSaveSuppressed)
+    if(mon_in_use.usingMonitor())
         m_packet_data.push_back(val);
 }
 

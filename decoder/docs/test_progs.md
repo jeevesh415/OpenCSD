@@ -37,6 +37,7 @@ These are small utilities, primarily used during the development and test of the
 - `mem-buffer-eg`          : example using a memory buffer input to the library.
 - `frame-demux-test`       : tests the library CoreSight Frame demux object.
 - `ocsd-perr`              : quickly list the library error codes and descriptions.
+- `itm-decode-test`        : test the ITM decoder.
 
 __Build and Install__
 
@@ -44,6 +45,98 @@ All the test programs are built at the same time as the library for the same set
 See [build_libs.md](@ref build_lib) for build details.
 
 Only `trc_pkt_lister` will be installed alongside the library.
+
+
+The `run_pkt_decode_tests.py` test script.
+------------------------------------------
+
+The repository also contains a cross-platform packet decode regression test runner at
+`.\tests\run_pkt_decode_tests.py`.
+
+This supercedes the existing linux `.bash` scripts for the packet decode
+snapshot sweeps with a single Python script that runs on Linux, macOS, and
+Windows. It invokes `trc_pkt_lister` for the standard and / or ETE snapshot
+sets, and also runs the standalone test programs mentioned above.
+
+__Typical use__
+
+- Use the default repository test binary directory discovered for the current platform:
+
+`python .\decoder\tests\run_pkt_decode_tests.py --suite both`
+
+- Use binaries from `PATH` instead of a repository output directory:
+
+`python .\decoder\tests\run_pkt_decode_tests.py --suite standard --use-installed`
+
+- Point the runner at an explicit test binary directory:
+
+`python .\decoder\tests\run_pkt_decode_tests.py --bin-dir .\decoder\tests\bin\win64\rel`
+
+__Results directories__
+
+For each run the script writes output logs to timestamped result directories:
+
+- standard suite: `.\tests\results-<suffix>`
+- ETE suite: `.\tests\results-ete-<suffix>`
+
+If `--results-suffix <suffix>` is specified, that suffix is used instead of the
+default `YYYYMMDD_HHMMSS` timestamp.
+
+__Runner options__
+
+- `--suite {standard,ete,both}` : select which snapshot suite or suites to run.
+- `--use-installed` : use `trc_pkt_lister` from `PATH`.
+- `--bin-dir <dir>` : use a specific repository or custom test binary directory.
+- `--list-only` : report the resolved binary directory and output directories without running tests.
+- `--list-tests` : list the available test names in the selected suite or suites.
+- `--results-suffix <suffix>` : override the timestamp suffix used in result directory names.
+- `--test <name>` : run a single named test from the selected suite.
+- `--memacc-req-trace` : set `OPENCSD_MEMACC_REQ_TRACE=1` for all test processes started by the script.
+- `--diff-only` : run only the result comparison step without running any tests.
+
+Any additional arguments after the script options are passed through to
+`trc_pkt_lister`. Use `--` to separate runner options from the packet lister
+arguments when needed.
+
+Example:
+
+`python .\decoder\tests\run_pkt_decode_tests.py --suite ete -- --stats`
+
+__Result comparison__
+
+The script can compare the results created by the current run against a
+previous result set after all requested tests have completed.
+
+- `--diff-previous` : compare the current run against the most recent previous
+  results directory for each selected suite.
+- `--diff-results-suffix <suffix>` : compare the current run against
+  `results-<suffix>` and / or `results-ete-<suffix>` for the selected suites.
+- `--diff-verbose` : also print unified diffs to stdout.
+
+The comparison operates on the files produced by the current run. It ignores
+any line containing `Version`, and also ignores the line immediately following a
+line containing `Test Command Line`, so that version strings and command line
+paths do not create false differences.
+
+If filtered differences are found, the script writes unified diff files beside
+the current run output using the form `<test_name>.ppl.diff`. The result
+comparison report lists each `suite:test` name with its filtered diff count, and
+returns a non-zero status if differences or comparison setup issues are found.
+Use `--diff-verbose` to also print the unified diffs to stdout.
+
+`--diff-only` compares existing result directories without running the test
+programs. In this mode `--diff-results-suffix` must be supplied either once or
+twice:
+
+- one `--diff-results-suffix <suffix>` : compare the most recent results
+  directory for each selected suite against `results-<suffix>` or
+  `results-ete-<suffix>`.
+- two `--diff-results-suffix <current>` and `--diff-results-suffix <baseline>`
+  options : compare the `<current>` results directory against the `<baseline>`
+  results directory for each selected suite.
+
+In the two-suffix form, the `.diff` files are written to the `<current>`
+results directory. Using the same suffix value twice is an error.
 
 
 Trace "Snapshot" directory.

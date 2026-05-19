@@ -767,5 +767,5 @@ int main(int argc, char* argv[])
     oss.str("");
     oss << "\n*** Memory access tests complete.***\nPassed: " << tests_passed << "; Failed: " << tests_failed << "\n";
     logger.LogMsg(oss.str());
-  	return (tests_failed == 0) ? 0 : -2;
+   	return (tests_failed == 0) ? 0 : -2;
 }

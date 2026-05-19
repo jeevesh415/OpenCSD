@@ -587,7 +587,7 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
         break;
 
     case ETE_PKT_I_SRC_ADDR_L_32IS0:
-        pName = "I_SCR_ADDR_L_32IS0";
+        pName = "I_SRC_ADDR_L_32IS0";
         pDesc = "Source Address, Long, 32 bit, IS0.";
         break;
 
